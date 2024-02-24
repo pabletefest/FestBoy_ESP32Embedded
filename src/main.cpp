@@ -218,32 +218,38 @@
 #include <Arduino.h>
 #include <SPI.h>
 #include <LittleFS.h>
+#include "gb.h"
+#include "game_pack.h"
+#include "ppu.h"
+
+static gb::GBConsole emulator;
 
 void setup()
 {
-  // gb::GBConsole emulator;
-
+  //delay(1000);
   Serial.begin(115200);
+  while(!Serial) { ; }
 
-  if(!LittleFS.begin(true)){
+  if(!LittleFS.begin(true))
+  {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
 
-  File file = LittleFS.open("/test.txt");
-  if(!file){
-    Serial.println("Failed to open file for reading");
-    return;
-  }
+  Ref<gb::GamePak> cartridge = std::make_shared<gb::GamePak>("roms/Tetris V1.1.gb");
 
-  Serial.println("File Content:");
-  while(file.available()){
-    Serial.write(file.read());
-  }
-  file.close();
+  emulator.insertCartridge(cartridge);
+  emulator.reset();
 }
 
 void loop()
 {
+  do
+  {
+    emulator.clock();
+  } while (!emulator.getPPU().frameCompleted);
 
+  emulator.getPPU().frameCompleted = false;
+
+  emulator.getPPU().drawFrameToDisplay();
 }

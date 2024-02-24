@@ -51,6 +51,8 @@ namespace gb
         auto getPixelsBufferData() -> u8*;
         auto getSpriteBuffer() -> TFT_eSprite& { return screenSprite; }
 
+        auto drawFrameToDisplay()-> void;
+        
     private:
         auto checkAndRaiseStatInterrupts() -> void;
         auto renderBackground() -> void;

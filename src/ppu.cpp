@@ -10,6 +10,9 @@
 
 #include <cstring>
 
+#define GB_PIXELS_HEIGHT 160
+#define GB_PIXELS_WIDTH 144
+
 namespace gb
 {
     // "$8800 (LCD Control bit 4 is 0) and $8000 (LCD Control bit 4 is 1) addressing modes to access BG and Window Tile Data"
@@ -42,7 +45,7 @@ gb::PPU::PPU(GBConsole* device)
     : system(device), LCDControl({}), LCDStatus({})
 {
     display.init();
-    screenSprite.createSprite(160, 144);
+    screenSprite.createSprite(GB_PIXELS_WIDTH, GB_PIXELS_WIDTH);
     screenSprite.setColorDepth(8);
     screenSprite.fillScreen(TFT_BLACK);
     // std::memset(VRAM.data(), 0x00, VRAM.size());
@@ -416,4 +419,9 @@ auto gb::PPU::scanlineOAMScanSearchRoutine() -> void
             scanlineValidSprites[spritesFound++] = objItem;
         }
     }
+}
+
+auto gb::PPU::drawFrameToDisplay() -> void
+{
+    screenSprite.pushSprite(display.width() / 2 - GB_PIXELS_WIDTH / 2, display.height() / 2 - GB_PIXELS_HEIGHT / 2);
 }
