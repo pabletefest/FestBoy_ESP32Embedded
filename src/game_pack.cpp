@@ -22,6 +22,8 @@ gb::GamePak::GamePak(const std::string& filename)
 
     if (ifs.is_open())
     {
+        printf("ROM file '%s' opened\n", filename.c_str());
+
         // TEMP: skipping bootrom
         ifs.seekg(256, std::ios_base::cur);
 
@@ -48,6 +50,10 @@ gb::GamePak::GamePak(const std::string& filename)
         default:
             break;
         }
+    }
+    else
+    {
+        printf("ROM file '%s' could not be opened\n", filename.c_str());
     }
 }
 

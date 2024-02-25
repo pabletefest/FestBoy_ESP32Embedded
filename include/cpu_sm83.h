@@ -6,7 +6,7 @@
  */
 
 #pragma once
-#include "emu_typedefs.h"
+#include "emu_typedefs.h" 
 
 namespace gb
 {

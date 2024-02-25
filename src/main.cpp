@@ -217,39 +217,78 @@
 
 #include <Arduino.h>
 #include <SPI.h>
-#include <LittleFS.h>
-#include "gb.h"
-#include "game_pack.h"
-#include "ppu.h"
+// #include <LittleFS.h>
+#include <SPIFFS.h>
 
-static gb::GBConsole emulator;
+#define CUSTOM_SETTINGS
+#define INCLUDE_GAMEPAD_MODULE
+#include <DabbleESP32.h>
+
+// #include "gb.h"
+// #include "game_pack.h"
+// #include "ppu.h"
+// #include <fstream>
+
+// static gb::GBConsole emulator;
 
 void setup()
 {
-  //delay(1000);
+  delay(1000);
   Serial.begin(115200);
-  while(!Serial) { ; }
+  // while(!Serial) { ; }
 
-  if(!LittleFS.begin(true))
+  if(!SPIFFS.begin(true))
   {
     Serial.println("An Error has occurred while mounting SPIFFS");
     return;
   }
 
-  Ref<gb::GamePak> cartridge = std::make_shared<gb::GamePak>("roms/Tetris V1.1.gb");
+  if (!SPIFFS.exists("/text.txt"))
+  {
+    Serial.println("File not found!");
+    return;
+  }
+  
+  Serial.println("\nFS lib initialized!");
+  
+  File file = SPIFFS.open("/text.txt");
 
-  emulator.insertCartridge(cartridge);
-  emulator.reset();
+  if(!file)
+  {
+    Serial.println("Failed to open file for reading");
+    return;
+  }
+
+  // std::ifstream ifs;
+
+  // ifs.open("/test.txt", std::ifstream::binary);
+
+  // if (ifs.is_open())
+  //   Serial.println("File opened ifstream");
+  // else
+  //   Serial.println("File not opened ifstream");
+
+
+  // Ref<gb::GamePak> cartridge = std::make_shared<gb::GamePak>("Tetris V1.1.gb");
+
+  // emulator.insertCartridge(cartridge);
+  // emulator.reset();
 }
 
 void loop()
 {
-  do
-  {
-    emulator.clock();
-  } while (!emulator.getPPU().frameCompleted);
+  // u32 startTime = millis();
 
-  emulator.getPPU().frameCompleted = false;
+  // do
+  // {
+  //   emulator.clock();
+  // } while (!emulator.getPPU().frameCompleted);
 
-  emulator.getPPU().drawFrameToDisplay();
+  // emulator.getPPU().frameCompleted = false;
+
+  // emulator.getPPU().drawFrameToDisplay();
+
+  // u32 endTime = millis();
+
+  // Serial.printf("Elapsed time %dms\n", endTime - startTime);
 }
