@@ -93,3 +93,8 @@ auto gb::GamePak::getROMBuffer() const -> const u8*
 {
     return vROMMemory.data();
 }
+
+auto gb::GamePak::getRomBufferSize() const -> const u32
+{
+    return vROMMemory.size() * sizeof(decltype(vROMMemory)::value_type);
+}
