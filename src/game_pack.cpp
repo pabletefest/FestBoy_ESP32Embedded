@@ -18,11 +18,11 @@ gb::GamePak::GamePak(const std::string& filename)
 
     std::ifstream ifs;
 
-    ifs.open(filename, std::ifstream::binary);
+    ifs.open("/spiffs/" + filename, std::ifstream::binary);
 
     if (ifs.is_open())
     {
-        printf("ROM file '%s' opened\n", filename.c_str());
+        printf("\nROM file '%s' opened\n", filename.c_str());
 
         // TEMP: skipping bootrom
         ifs.seekg(256, std::ios_base::cur);
@@ -53,8 +53,10 @@ gb::GamePak::GamePak(const std::string& filename)
     }
     else
     {
-        printf("ROM file '%s' could not be opened\n", filename.c_str());
+        printf("\nROM file '%s' could not be opened\n", filename.c_str());
     }
+
+    printf("ROM buffer size is %d bytes\n", getRomBufferSize());
 }
 
 auto gb::GamePak::read(u16 addr, u8& data) -> bool

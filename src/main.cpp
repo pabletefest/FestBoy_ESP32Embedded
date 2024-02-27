@@ -224,12 +224,12 @@
 #define INCLUDE_GAMEPAD_MODULE
 #include <DabbleESP32.h>
 
-// #include "gb.h"
-// #include "game_pack.h"
-// #include "ppu.h"
+#include "gb.h"
+#include "game_pack.h"
+#include "ppu.h"
 // #include <fstream>
 
-// static gb::GBConsole emulator;
+static gb::GBConsole emulator;
 
 void setup()
 {
@@ -243,25 +243,27 @@ void setup()
     return;
   }
 
-  if (!SPIFFS.exists("/text.txt"))
-  {
-    Serial.println("File not found!");
-    return;
-  }
+  // if (!SPIFFS.exists("/text.txt"))
+  // {
+  //   Serial.println("File not found!");
+  //   return;
+  // }
   
-  Serial.println("\nFS lib initialized!");
+  // Serial.println("\nFS lib initialized!");
   
-  File file = SPIFFS.open("/text.txt");
+  // File file = SPIFFS.open("/text.txt");
 
-  if(!file)
-  {
-    Serial.println("Failed to open file for reading");
-    return;
-  }
+  // if(!file)
+  // {
+  //   Serial.println("Failed to open file for reading");
+  //   return;
+  // }
+
+  // Serial.println("File opened!");
 
   // std::ifstream ifs;
 
-  // ifs.open("/test.txt", std::ifstream::binary);
+  // ifs.open("/spiffs/text.txt", std::ifstream::binary);
 
   // if (ifs.is_open())
   //   Serial.println("File opened ifstream");
@@ -269,10 +271,10 @@ void setup()
   //   Serial.println("File not opened ifstream");
 
 
-  // Ref<gb::GamePak> cartridge = std::make_shared<gb::GamePak>("Tetris V1.1.gb");
+  Ref<gb::GamePak> cartridge = std::make_shared<gb::GamePak>("Tetris V1.1.gb");
 
-  // emulator.insertCartridge(cartridge);
-  // emulator.reset();
+  emulator.insertCartridge(cartridge);
+  emulator.reset();
 }
 
 void loop()
