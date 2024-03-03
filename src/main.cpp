@@ -229,7 +229,8 @@
 #include "ppu.h"
 // #include <fstream>
 
-static gb::GBConsole emulator;
+// static gb::GBConsole emulator;
+gb::GBConsole* emulator = nullptr;
 
 void setup()
 {
@@ -270,27 +271,30 @@ void setup()
   // else
   //   Serial.println("File not opened ifstream");
 
-
+  emulator = new gb::GBConsole();
   Ref<gb::GamePak> cartridge = std::make_shared<gb::GamePak>("Tetris V1.1.gb");
 
-  emulator.insertCartridge(cartridge);
-  emulator.reset();
+  emulator->insertCartridge(cartridge);
+  emulator->reset();
 }
 
 void loop()
 {
-  // u32 startTime = millis();
+  // Serial.println("Executing loop");
+  u32 startTime = millis();
 
-  // do
-  // {
-  //   emulator.clock();
-  // } while (!emulator.getPPU().frameCompleted);
+  do
+  {
+    emulator->clock();
+  } while (!emulator->getPPU().frameCompleted);
 
-  // emulator.getPPU().frameCompleted = false;
+  // Serial.println("Frame finished");
 
-  // emulator.getPPU().drawFrameToDisplay();
+  emulator->getPPU().frameCompleted = false;
 
-  // u32 endTime = millis();
+  emulator->getPPU().drawFrameToDisplay();
 
-  // Serial.printf("Elapsed time %dms\n", endTime - startTime);
+  u32 endTime = millis();
+
+  Serial.printf("Elapsed time %dms\n", endTime - startTime);
 }

@@ -10,8 +10,8 @@
 
 #include <cstring>
 
-#define GB_PIXELS_HEIGHT 160
-#define GB_PIXELS_WIDTH 144
+#define GB_PIXELS_WIDTH 160
+#define GB_PIXELS_HEIGHT 144
 
 namespace gb
 {
@@ -45,8 +45,13 @@ gb::PPU::PPU(GBConsole* device)
     : system(device), LCDControl({}), LCDStatus({})
 {
     display.init();
-    screenSprite.createSprite(GB_PIXELS_WIDTH, GB_PIXELS_WIDTH);
-    screenSprite.setColorDepth(8);
+    display.setRotation(1);
+    display.resetViewport();
+    display.fillScreen(TFT_BLACK);
+    screenSprite.createSprite(GB_PIXELS_WIDTH, GB_PIXELS_HEIGHT);
+    screenSprite.setRotation(1);
+    screenSprite.resetViewport();
+    screenSprite.setColorDepth(16);
     screenSprite.fillScreen(TFT_BLACK);
     // std::memset(VRAM.data(), 0x00, VRAM.size());
     std::memset(OAM.data(), 0x00, OAM.size() * sizeof(SpriteInfoOAM));
@@ -195,6 +200,7 @@ auto gb::PPU::clock() -> void
             {
                 LCDStatus.ModeFlag = 2;
                 lastMode3Dot = 172 + 80 - 1; // Min number of dots is 168-174 according to different sources (172 placeholder for now)
+                // Serial.println("Mode 2 entered");
             }
 
             if (currentDot == 79) // Checking for valid objects in the current scanline performed in the last cycle of mode 2
@@ -210,6 +216,7 @@ auto gb::PPU::clock() -> void
             {
                 LCDStatus.ModeFlag = 3;
                 //checkAndRaiseStatInterrupts();
+                // Serial.println("Mode 3 entered");
             }
 
             // Render the line in the last dot before HBlank (scanline renderer)
@@ -234,6 +241,7 @@ auto gb::PPU::clock() -> void
             {
                 LCDStatus.ModeFlag = 0;
                 //checkAndRaiseStatInterrupts();
+                // Serial.println("Mode 0 entered");
             }
         }
     }
@@ -244,6 +252,7 @@ auto gb::PPU::clock() -> void
         {
             LCDStatus.ModeFlag = 1;
             system->requestInterrupt(gb::GBConsole::InterruptType::VBlank);
+            // Serial.println("Mode 0 entered");
         }
     }
 
@@ -255,11 +264,14 @@ auto gb::PPU::clock() -> void
         currentDot = 0;
         remainingDots = 456;
         LY++;
+        // Serial.printf("LY: %d\n", LY);
 
         if (LY == 154)
         {
             LY = 0;
             frameCompleted = true;
+            // static unsigned frameCount = 0;
+            // Serial.printf("Frame #%d completed!\n", frameCount++);
         }
     }
 }
@@ -313,9 +325,11 @@ auto gb::PPU::renderBackground() -> void
             u8 paletteColorIndex = ((highBit << 1) | lowBit) & 0b11;
             u8 colorPixel = (bgPaletteData >> (paletteColorIndex * 2)) & 0b11;
 
-            std::size_t bufferIndex = (LY * PIXELS_PER_LINE) + (tileIndex * 8 + pixelIndex);
+            u8 y = LY;
+            u8 x = (tileIndex * 8 + pixelIndex);
+            // std::size_t bufferIndex = (LY * PIXELS_PER_LINE) + (tileIndex * 8 + pixelIndex);
 
-            u8* pixelsBuffer = reinterpret_cast<u8*>(screenSprite.getPointer());
+            // u8* pixelsBuffer = reinterpret_cast<u8*>(screenSprite.getPointer());
 
             switch(screenSprite.getColorDepth())
             {
@@ -326,10 +340,15 @@ auto gb::PPU::renderBackground() -> void
             case BBP8:
             {
                 u8 paletteColor = (LCDControl.BGWindEnablePriority) ? greenShadesRGB332Palette[colorPixel & 0b11] : greenShadesRGB332Palette[0];
-                pixelsBuffer[bufferIndex] = std::move(paletteColor);
+                // pixelsBuffer[bufferIndex] = std::move(paletteColor);
+                screenSprite.drawPixel(x, y, paletteColor);
             }
                 break;
             case BBP16:
+            {
+                u16 paletteColor = (LCDControl.BGWindEnablePriority) ? greenShadesRGB565Palette[colorPixel & 0b11] : greenShadesRGB565Palette[0];
+                screenSprite.drawPixel(x, y, paletteColor);
+            }
                 break;
             case INVALID_BPP:
             default:
@@ -375,14 +394,24 @@ auto gb::PPU::renderSprites() -> void
             if (colorPixel == 0)
                 continue;
 
-            std::size_t bufferIndex = (LY * PIXELS_PER_LINE) + (obj.Xposition - 8 + pixelIndex);
+            u8 y = LY;
+            u8 x = (tileIndex * 8 + pixelIndex);
+            // std::size_t bufferIndex = (LY * PIXELS_PER_LINE) + (obj.Xposition - 8 + pixelIndex);
 
-            u8* pixelsBuffer = reinterpret_cast<u8*>(screenSprite.getPointer());
+            // u8* pixelsBuffer = reinterpret_cast<u8*>(screenSprite.getPointer());
 
-            if ((obj.attributesFlags & 0x80) && (pixelsBuffer[bufferIndex] != greenShadesRGB332Palette[0]))
+            u8 colorDepth = screenSprite.getColorDepth();
+            u16 bgColor = greenShadesRGB565Palette[0];
+
+            // if (colorDepth == BBP8)
+            //     bgColor = greenShadesRGB332Palette[0] & 0x00FF;
+            // else if (colorDepth == BBP16)
+            //     bgColor = greenShadesRGB565Palette[0];
+
+            if ((obj.attributesFlags & 0x80) && (screenSprite.readPixelValue(x, y) != bgColor))
                 continue;
 
-            switch(screenSprite.getColorDepth())
+            switch(colorDepth)
             {
             case BBP1:
                 break;
@@ -391,10 +420,15 @@ auto gb::PPU::renderSprites() -> void
             case BBP8:
             {
                 u8 paletteColor = greenShadesRGB332Palette[colorPixel & 0b11];
-                pixelsBuffer[bufferIndex] = std::move(paletteColor);
+                // pixelsBuffer[bufferIndex] = std::move(paletteColor);
+                screenSprite.drawPixel(x, y, paletteColor);
             }
                 break;
             case BBP16:
+            {
+                u16 paletteColor = greenShadesRGB565Palette[colorPixel & 0b11];              
+                screenSprite.drawPixel(x, y, paletteColor);
+            }
                 break;
             case INVALID_BPP:
             default:
@@ -423,5 +457,19 @@ auto gb::PPU::scanlineOAMScanSearchRoutine() -> void
 
 auto gb::PPU::drawFrameToDisplay() -> void
 {
-    screenSprite.pushSprite(display.width() / 2 - GB_PIXELS_WIDTH / 2, display.height() / 2 - GB_PIXELS_HEIGHT / 2);
+    // screenSprite.fillSprite(TFT_RED);
+
+    // for (int y = 0; y < 144; y++)
+    // {
+    //     for (int x = 0; x < 160; x++)
+    //     {
+    //         screenSprite.drawPixel(x, y, greenShadesRGB565Palette[x%4]);
+    //     }
+    // }
+
+    // Serial.printf("Width: %d - Height: %d\n", screenSprite.width(), screenSprite.height());
+
+    screenSprite.pushSprite(display.width() / 2 - screenSprite.width() / 2, display.height() / 2 - screenSprite.height() / 2);
+    // screenSprite.pushSprite(display.width() / 2 - GB_PIXELS_WIDTH / 2, display.height() / 2 - GB_PIXELS_HEIGHT / 2);
+    // screenSprite.pushSprite(0, 0);
 }
