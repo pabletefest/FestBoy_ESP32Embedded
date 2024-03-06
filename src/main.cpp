@@ -236,6 +236,7 @@ void setup()
 {
   delay(1000);
   Serial.begin(115200);
+  Dabble.begin("FestBoy_ESP32"); // Set bluetooth name of your device
   // while(!Serial) { ; }
 
   if(!SPIFFS.begin(true))
@@ -283,6 +284,69 @@ void loop()
   // Serial.println("Executing loop");
   u32 startTime = millis();
 
+  emulator->controllerState.buttons |= 0xF;
+  emulator->controllerState.dpad |= 0xF;
+
+  Dabble.processInput(); // This function is used to refresh data obtained from smartphone. Hence calling this function is mandatory in order to get data properly from your mobile.
+  
+  if (GamePad.isUpPressed())
+  {
+    emulator->controllerState.dpad &= ~0x4;
+    Serial.println("UP pressed!");
+  }
+
+  if (GamePad.isDownPressed())
+  {
+    emulator->controllerState.dpad &= ~0x8;
+    Serial.println("DOWN pressed!");
+  }
+
+  if (GamePad.isLeftPressed())
+  {
+    emulator->controllerState.dpad &= ~0x2;
+    Serial.println("LEFT pressed!");
+  }
+
+  if (GamePad.isRightPressed())
+  {
+    emulator->controllerState.dpad &= ~0x1;
+    Serial.println("RIGHT pressed!");
+  }
+
+  // if (GamePad.isSquarePressed())
+  // {
+  //   Serial.println("Square");
+  // }
+
+  if (GamePad.isCirclePressed())
+  {
+    emulator->controllerState.buttons &= ~0x1;
+    Serial.println("A pressed!");
+  }
+
+  if (GamePad.isCrossPressed())
+  {
+    emulator->controllerState.buttons &= ~0x2;
+    Serial.println("B pressed!");
+  }
+
+  // if (GamePad.isTrianglePressed())
+  // {
+  //   Serial.println("Triangle");
+  // }
+
+  if (GamePad.isStartPressed())
+  {
+    emulator->controllerState.buttons &= ~0x8;
+    Serial.println("START pressed!");
+  }
+
+  if (GamePad.isSelectPressed())
+  {
+    emulator->controllerState.buttons &= ~0x4;
+    Serial.println("SELECT pressed!");
+  }
+
   do
   {
     emulator->clock();
@@ -296,5 +360,5 @@ void loop()
 
   u32 endTime = millis();
 
-  Serial.printf("Elapsed time %dms\n", endTime - startTime);
+  // Serial.printf("Elapsed time %dms\n", endTime - startTime);
 }

@@ -86,7 +86,7 @@ auto gb::GBConsole::read8(const u16& address) -> u8
             }
 
             // TEMP
-            dataRead = 0x0F;
+            // dataRead = 0x0F;
 
             break;
         case 0xFF01:
