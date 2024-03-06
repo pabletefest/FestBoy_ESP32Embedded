@@ -395,7 +395,7 @@ auto gb::PPU::renderSprites() -> void
                 continue;
 
             u8 y = LY;
-            u8 x = (tileIndex * 8 + pixelIndex);
+            u8 x = (obj.Xposition - 8 + pixelIndex);
             // std::size_t bufferIndex = (LY * PIXELS_PER_LINE) + (obj.Xposition - 8 + pixelIndex);
 
             // u8* pixelsBuffer = reinterpret_cast<u8*>(screenSprite.getPointer());
@@ -403,10 +403,8 @@ auto gb::PPU::renderSprites() -> void
             u8 colorDepth = screenSprite.getColorDepth();
             u16 bgColor = greenShadesRGB565Palette[0];
 
-            // if (colorDepth == BBP8)
-            //     bgColor = greenShadesRGB332Palette[0] & 0x00FF;
-            // else if (colorDepth == BBP16)
-            //     bgColor = greenShadesRGB565Palette[0];
+            if (colorDepth == BBP8)
+                bgColor = greenShadesRGB332Palette[0] & 0x00FF;
 
             if ((obj.attributesFlags & 0x80) && (screenSprite.readPixelValue(x, y) != bgColor))
                 continue;
