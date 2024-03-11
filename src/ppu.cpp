@@ -471,3 +471,21 @@ auto gb::PPU::drawFrameToDisplay() -> void
     // screenSprite.pushSprite(display.width() / 2 - GB_PIXELS_WIDTH / 2, display.height() / 2 - GB_PIXELS_HEIGHT / 2);
     // screenSprite.pushSprite(0, 0);
 }
+
+auto gb::PPU::printTextToDisplay(const std::string& text, u8 font, u8 datum) -> void
+{
+    display.setTextColor(TFT_WHITE, TFT_BLACK);
+    // display.setTextFont(font);
+    display.setTextDatum(datum);
+    // display.setCursor(0, 0);
+    display.println(text.c_str());
+}
+
+auto gb::PPU::printTextToDisplay(const std::string& text, u16 x, u16 y, u8 font, u8 datum) -> void
+{
+    display.setTextColor(TFT_WHITE, TFT_BLACK);
+    // display.setTextFont(font);
+    display.setTextDatum(datum);
+    // display.setCursor(0, 0);
+    display.drawString(text.c_str(), x, y, font);
+}

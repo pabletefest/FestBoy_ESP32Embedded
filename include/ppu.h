@@ -52,6 +52,8 @@ namespace gb
         auto getSpriteBuffer() -> TFT_eSprite& { return screenSprite; }
 
         auto drawFrameToDisplay()-> void;
+        auto printTextToDisplay(const std::string& text, u8 font = 1, u8 datum = TL_DATUM) -> void;
+        auto printTextToDisplay(const std::string& text, u16 x, u16 y, u8 font = 1, u8 datum = TL_DATUM) -> void;
         
     private:
         auto checkAndRaiseStatInterrupts() -> void;
