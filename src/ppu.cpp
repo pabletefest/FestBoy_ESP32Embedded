@@ -48,11 +48,12 @@ gb::PPU::PPU(GBConsole* device)
     display.setRotation(1);
     display.resetViewport();
     display.fillScreen(TFT_BLACK);
-    screenSprite.createSprite(GB_PIXELS_WIDTH, GB_PIXELS_HEIGHT);
     screenSprite.setRotation(1);
     screenSprite.resetViewport();
-    screenSprite.setColorDepth(16);
+    screenSprite.setColorDepth(4);
+    screenSprite.createSprite(GB_PIXELS_WIDTH * 2, GB_PIXELS_HEIGHT * 2);
     screenSprite.fillScreen(TFT_BLACK);
+    screenSprite.createPalette(greenShadesRGB565Palette, 4);
     // std::memset(VRAM.data(), 0x00, VRAM.size());
     std::memset(OAM.data(), 0x00, OAM.size() * sizeof(SpriteInfoOAM));
     std::memset(scanlineValidSprites.data(), 0x00, scanlineValidSprites.size() * sizeof(SpriteInfoOAM));
@@ -336,6 +337,13 @@ auto gb::PPU::renderBackground() -> void
             case BBP1:
                 break;
             case BBP4:
+            {
+                u8 colorIndex = colorPixel & 0b11;
+                screenSprite.drawPixel(x * 2, y * 2, colorIndex);
+                screenSprite.drawPixel(x * 2 + 1, y * 2, colorIndex);
+                screenSprite.drawPixel(x * 2, y * 2 + 1, colorIndex);
+                screenSprite.drawPixel(x * 2 + 1, y * 2 +1, colorIndex);
+            }
                 break;
             case BBP8:
             {
@@ -414,7 +422,14 @@ auto gb::PPU::renderSprites() -> void
             case BBP1:
                 break;
             case BBP4:
-                break;
+            {
+                u8 colorIndex = colorPixel & 0b11;
+                screenSprite.drawPixel(x * 2, y * 2, colorIndex);
+                screenSprite.drawPixel(x * 2 + 1, y * 2, colorIndex);
+                screenSprite.drawPixel(x * 2, y * 2 + 1, colorIndex);
+                screenSprite.drawPixel(x * 2 + 1, y * 2 +1, colorIndex);
+            }       
+            break;
             case BBP8:
             {
                 u8 paletteColor = greenShadesRGB332Palette[colorPixel & 0b11];
@@ -467,7 +482,13 @@ auto gb::PPU::drawFrameToDisplay() -> void
 
     // Serial.printf("Width: %d - Height: %d\n", screenSprite.width(), screenSprite.height());
 
-    screenSprite.pushSprite(display.width() / 2 - screenSprite.width() / 2, display.height() / 2 - screenSprite.height() / 2);
+    u16 x = display.width() / 2 - screenSprite.width() / 2;
+    u16 y = display.height() / 2 - screenSprite.height() / 2;
+
+    if (screenSprite.getColorDepth() == BBP4)
+        y += (x / y) * 2; // Adding some padding between the texts and the sprite
+
+    screenSprite.pushSprite(x, y);
     // screenSprite.pushSprite(display.width() / 2 - GB_PIXELS_WIDTH / 2, display.height() / 2 - GB_PIXELS_HEIGHT / 2);
     // screenSprite.pushSprite(0, 0);
 }
