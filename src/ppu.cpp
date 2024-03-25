@@ -39,6 +39,69 @@ namespace gb
     static constexpr u8 NUMBER_OF_TILE_LINES = 18;
     static constexpr u8 PIXELS_PER_LINE = 160;
     static constexpr u8 NUMBER_OF_LINES = 144;
+
+    static QueueHandle_t ppuStateQueue;
+
+    struct PPUStateMessage
+    {
+        u8 modeFlag;
+        u8 ly;
+        u8 scy;
+        u8 BGWindTileDataArea;
+        u8 BGtileMapArea;
+        u8 BGWindEnablePriority;
+        u8 OBJenable;
+        u8 OBJsize;
+        u8 spritesFound;
+    };
+
+    static PPUStateMessage ppuStateMessage;
+
+    static auto renderScanlineTask(void* arg) -> void
+    {
+        PPUStateMessage ppuMsg;
+        PPU* ppu = static_cast<PPU*>(arg);
+        u8 spritesFound = 0;
+
+        while(true)
+        {
+            if (xQueueReceive(ppuStateQueue, (void*) &ppuMsg, portMAX_DELAY) == pdFALSE)
+                continue;
+
+            u8 modeFlag = ppuMsg.modeFlag;
+            u8 scanline = ppuMsg.ly;
+            u8 objSize = ppuMsg.OBJsize;
+
+            if (modeFlag == 2)
+            {
+                ppu->scanlineOAMScanSearchRoutine(scanline, objSize, spritesFound);
+                continue;
+            }
+
+            u8 bgWindEnabled = ppuMsg.BGWindEnablePriority;
+            u8 objEnabled = ppuMsg.OBJenable;
+            u8 yScroll = ppuMsg.scy;
+            u8 bgWindTileDataArea = ppuMsg.BGWindTileDataArea;
+            u8 bgTileMapArea = ppuMsg.BGtileMapArea;
+
+            if (modeFlag == 3)
+            {
+                if (bgWindEnabled)
+                    ppu->renderBackground(scanline, yScroll, bgWindTileDataArea, bgTileMapArea, bgWindEnabled);
+
+                if (objEnabled)
+                    ppu->renderSprites(scanline, spritesFound, objSize);
+
+                continue;
+            }
+
+            if (modeFlag == 1)
+            {
+                ppu->drawFrameToDisplay();
+                continue;
+            }
+        }
+    }
 }
 
 gb::PPU::PPU(GBConsole* device)
@@ -56,9 +119,12 @@ gb::PPU::PPU(GBConsole* device)
     // std::memset(VRAM.data(), 0x00, VRAM.size());
     std::memset(OAM.data(), 0x00, OAM.size() * sizeof(SpriteInfoOAM));
     std::memset(scanlineValidSprites.data(), 0x00, scanlineValidSprites.size() * sizeof(SpriteInfoOAM));
+
+    ppuStateQueue = xQueueCreate(144, sizeof(PPUStateMessage));
+    xTaskCreatePinnedToCore(renderScanlineTask, "RenderScanlineTask", 2_KB, this, configMAX_PRIORITIES - 1, NULL, 0);
 }
 
-auto gb::PPU::read(u16 address) -> u8
+auto IRAM_ATTR gb::PPU::read(u16 address) -> u8
 {
     u8 dataRead = 0x00;
 
@@ -116,7 +182,7 @@ auto gb::PPU::read(u16 address) -> u8
     return dataRead;
 }
 
-auto gb::PPU::write(u16 address, u8 data) -> void
+auto IRAM_ATTR gb::PPU::write(u16 address, u8 data) -> void
 {
     if (address >= 0x8000 && address <= 0x9FFF)
     {
@@ -172,9 +238,10 @@ auto gb::PPU::write(u16 address, u8 data) -> void
 
 auto gb::PPU::reset() -> void
 {
+    xQueueReset(ppuStateQueue);
 }
 
-auto gb::PPU::clock() -> void
+auto IRAM_ATTR gb::PPU::clock() -> void
 {
     if (!LCDControl.LCDenable)
         return;
@@ -204,7 +271,13 @@ auto gb::PPU::clock() -> void
             }
 
             if (currentDot == 79) // Checking for valid objects in the current scanline performed in the last cycle of mode 2
-                scanlineOAMScanSearchRoutine();
+                // scanlineOAMScanSearchRoutine();
+            {
+                ppuStateMessage.modeFlag = LCDStatus.ModeFlag;
+                ppuStateMessage.OBJsize = LCDControl.OBJsize;
+                ppuStateMessage.ly = LY;
+                xQueueSend(ppuStateQueue, (const void*) &ppuStateMessage, 0);
+            }
 
             //checkAndRaiseStatInterrupts();
         }
@@ -222,14 +295,26 @@ auto gb::PPU::clock() -> void
             // Render the line in the last dot before HBlank (scanline renderer)
             if (currentDot == lastMode3Dot)
             {
-                if (LCDControl.BGWindEnablePriority)
-                {
-                    renderBackground();
-                    renderWindow();
-                }
+                // if (LCDControl.BGWindEnablePriority)
+                // {
+                //     renderBackground();
+                //     renderWindow();
+                // }
 
-                if (LCDControl.OBJenable)
-                    renderSprites();
+                // if (LCDControl.OBJenable)
+                //     renderSprites();
+
+                ppuStateMessage.modeFlag = LCDStatus.ModeFlag;
+                ppuStateMessage.BGWindEnablePriority = LCDControl.BGWindEnablePriority;
+                ppuStateMessage.OBJenable = LCDControl.OBJenable;
+                ppuStateMessage.BGWindTileDataArea = LCDControl.BGWindTileDataArea;
+                ppuStateMessage.BGtileMapArea = LCDControl.BGtileMapArea;
+                ppuStateMessage.OBJsize = LCDControl.OBJsize;
+                ppuStateMessage.spritesFound = spritesFound;
+                ppuStateMessage.ly = LY;
+                ppuStateMessage.scy = SCY;
+
+                xQueueSend(ppuStateQueue, (const void*) &ppuStateMessage, 0);
             }
         }
 
@@ -251,6 +336,10 @@ auto gb::PPU::clock() -> void
         if (LY == 144 && currentDot == 0)
         {
             LCDStatus.ModeFlag = 1;
+
+            ppuStateMessage.modeFlag = LCDStatus.ModeFlag;
+            xQueueSend(ppuStateQueue, (const void*) &ppuStateMessage, 0);
+
             system->requestInterrupt(gb::GBConsole::InterruptType::VBlank);
             // Serial.println("Mode 0 entered");
         }
@@ -281,7 +370,7 @@ auto gb::PPU::getPixelsBufferData() -> u8 *
     return reinterpret_cast<u8 *>(getSpriteBuffer().getPointer());
 }
 
-auto gb::PPU::checkAndRaiseStatInterrupts() -> void
+auto IRAM_ATTR gb::PPU::checkAndRaiseStatInterrupts() -> void
 {
     // STAT Interrupt only triggered in rising edge, that is from low 0 to high 1
     if (!system->getInterruptState(gb::GBConsole::InterruptType::STAT))
@@ -296,13 +385,13 @@ auto gb::PPU::checkAndRaiseStatInterrupts() -> void
     }
 }
 
-auto gb::PPU::renderBackground() -> void
+auto IRAM_ATTR gb::PPU::renderBackground(u8 scanline, u8 yScroll, u8 bgWindTileDataArea, u8 bgTileMapArea, u8 bgWindEnablePriority) -> void
 {
-    u16 tileLine = 32 * (((LY + SCY) & 0xFF) / 8);
-    u16 tileY = (LY + SCY) % 8;
+    u16 tileLine = 32 * (((scanline + yScroll) & 0xFF) / 8);
+    u16 tileY = (scanline + yScroll) % 8;
     u16 tileOffset = (0 + tileLine) & 0x3FF;
-    const u16* addressingMode = vramAddressingMode[LCDControl.BGWindTileDataArea];
-    u16 bgTileMapAddress = tileMapAddress[LCDControl.BGtileMapArea] + tileOffset;
+    const u16* addressingMode = vramAddressingMode[bgWindTileDataArea];
+    u16 bgTileMapAddress = tileMapAddress[bgTileMapArea] + tileOffset;
 
     for (int tileIndex = 0; tileIndex < TILES_PER_LINE; tileIndex++)
     {
@@ -325,7 +414,7 @@ auto gb::PPU::renderBackground() -> void
             u8 paletteColorIndex = ((highBit << 1) | lowBit) & 0b11;
             u8 colorPixel = (bgPaletteData >> (paletteColorIndex * 2)) & 0b11;
 
-            u8 y = LY;
+            u8 y = scanline;
             u8 x = (tileIndex * 8 + pixelIndex);
             // std::size_t bufferIndex = (LY * PIXELS_PER_LINE) + (tileIndex * 8 + pixelIndex);
 
@@ -339,14 +428,14 @@ auto gb::PPU::renderBackground() -> void
                 break;
             case BBP8:
             {
-                u8 paletteColor = (LCDControl.BGWindEnablePriority) ? greenShadesRGB332Palette[colorPixel & 0b11] : greenShadesRGB332Palette[0];
+                u8 paletteColor = (bgWindEnablePriority) ? greenShadesRGB332Palette[colorPixel & 0b11] : greenShadesRGB332Palette[0];
                 // pixelsBuffer[bufferIndex] = std::move(paletteColor);
                 screenSprite.drawPixel(x, y, paletteColor);
             }
                 break;
             case BBP16:
             {
-                u16 paletteColor = (LCDControl.BGWindEnablePriority) ? greenShadesRGB565Palette[colorPixel & 0b11] : greenShadesRGB565Palette[0];
+                u16 paletteColor = (bgWindEnablePriority) ? greenShadesRGB565Palette[colorPixel & 0b11] : greenShadesRGB565Palette[0];
                 screenSprite.drawPixel(x, y, paletteColor);
             }
                 break;
@@ -364,14 +453,14 @@ auto gb::PPU::renderWindow() -> void
 {
 }
 
-auto gb::PPU::renderSprites() -> void
+auto IRAM_ATTR gb::PPU::renderSprites(u8 scanline, u8 spritesFound, u8 objSize) -> void
 {
     for (int item = spritesFound - 1; item >= 0; item--)
     {
         const auto& obj = scanlineValidSprites[item];
 
-        u8 tileIndex = LCDControl.OBJsize ? (obj.tileIndex & 0xFE) : obj.tileIndex;
-        u8 tileDataYOffset = (LY + 16 - obj.Yposition) * 2;
+        u8 tileIndex = objSize ? (obj.tileIndex & 0xFE) : obj.tileIndex;
+        u8 tileDataYOffset = (scanline + 16 - obj.Yposition) * 2;
         u16 tileDataAddress = 0x8000 + (tileIndex * 16) + tileDataYOffset;
         u8 lowByteTileData = read(tileDataAddress);
         u8 highByteTileData = read(tileDataAddress + 1);
@@ -394,7 +483,7 @@ auto gb::PPU::renderSprites() -> void
             if (colorPixel == 0)
                 continue;
 
-            u8 y = LY;
+            u8 y = scanline;
             u8 x = (obj.Xposition - 8 + pixelIndex);
             // std::size_t bufferIndex = (LY * PIXELS_PER_LINE) + (obj.Xposition - 8 + pixelIndex);
 
@@ -436,9 +525,9 @@ auto gb::PPU::renderSprites() -> void
     }
 }
 
-auto gb::PPU::scanlineOAMScanSearchRoutine() -> void
+auto IRAM_ATTR gb::PPU::scanlineOAMScanSearchRoutine(u8 scanline, u8 objSize, u8& spritesFound) -> void
 {
-    u8 spriteSize = 8 << LCDControl.OBJsize; // 8x8 (OBJsize is 0) or 8x16 (OBJsize is 1) sprites
+    u8 spriteSize = 8 << objSize; // 8x8 (OBJsize is 0) or 8x16 (OBJsize is 1) sprites
     spritesFound = 0;
 
     for (const auto& objItem : OAM)
@@ -446,14 +535,14 @@ auto gb::PPU::scanlineOAMScanSearchRoutine() -> void
         if (spritesFound == 10)
             break;
 
-        if ((objItem.Yposition <= (LY + 16)) && ((LY + 16) < (objItem.Yposition + spriteSize)))
+        if ((objItem.Yposition <= (scanline + 16)) && ((scanline + 16) < (objItem.Yposition + spriteSize)))
         {
             scanlineValidSprites[spritesFound++] = objItem;
         }
     }
 }
 
-auto gb::PPU::drawFrameToDisplay() -> void
+auto IRAM_ATTR gb::PPU::drawFrameToDisplay() -> void
 {
     // screenSprite.fillSprite(TFT_RED);
 
@@ -472,7 +561,7 @@ auto gb::PPU::drawFrameToDisplay() -> void
     // screenSprite.pushSprite(0, 0);
 }
 
-auto gb::PPU::printTextToDisplay(const std::string& text, u8 font, u8 datum) -> void
+auto IRAM_ATTR gb::PPU::printTextToDisplay(const std::string& text, u8 font, u8 datum) -> void
 {
     display.setTextColor(TFT_WHITE, TFT_BLACK);
     // display.setTextFont(font);
@@ -481,7 +570,7 @@ auto gb::PPU::printTextToDisplay(const std::string& text, u8 font, u8 datum) -> 
     display.println(text.c_str());
 }
 
-auto gb::PPU::printTextToDisplay(const std::string& text, u16 x, u16 y, u8 font, u8 datum) -> void
+auto IRAM_ATTR gb::PPU::printTextToDisplay(const std::string& text, u16 x, u16 y, u8 font, u8 datum) -> void
 {
     display.setTextColor(TFT_WHITE, TFT_BLACK);
     // display.setTextFont(font);

@@ -55,12 +55,12 @@ namespace gb
         auto printTextToDisplay(const std::string& text, u8 font = 1, u8 datum = TL_DATUM) -> void;
         auto printTextToDisplay(const std::string& text, u16 x, u16 y, u8 font = 1, u8 datum = TL_DATUM) -> void;
         
-    private:
+    public:
         auto checkAndRaiseStatInterrupts() -> void;
-        auto renderBackground() -> void;
+        auto renderBackground(u8 scanline, u8 yScroll, u8 bgWindTileDataArea, u8 bgTileMapArea, u8 bgWindEnablePriority) -> void;
         auto renderWindow() -> void;
-        auto renderSprites() -> void;
-        auto scanlineOAMScanSearchRoutine() -> void;
+        auto renderSprites(u8 scanline, u8 spritesFound, u8 objSize) -> void;
+        auto scanlineOAMScanSearchRoutine(u8 scanline, u8 objSize, u8& spritesFound) -> void;
 
     public:
         GBConsole* system = nullptr;
