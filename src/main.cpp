@@ -25,6 +25,7 @@ void setup()
   delay(1000);
   Serial.begin(115200);
   Dabble.begin("FestBoy_ESP32"); // Set bluetooth name of your device
+  esp_bt_mem_release(ESP_BT_MODE_CLASSIC_BT);
   // while(!Serial) { ; }
 
   if(!SPIFFS.begin(true))

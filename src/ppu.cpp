@@ -50,8 +50,8 @@ gb::PPU::PPU(GBConsole* device)
     display.fillScreen(TFT_BLACK);
     screenSprite.setRotation(1);
     screenSprite.resetViewport();
-    screenSprite.setColorDepth(4);
-    screenSprite.createSprite(GB_PIXELS_WIDTH * 2, GB_PIXELS_HEIGHT * 2);
+    screenSprite.setColorDepth(16);
+    screenSprite.createSprite(GB_PIXELS_WIDTH, GB_PIXELS_HEIGHT);
     screenSprite.fillScreen(TFT_BLACK);
     screenSprite.createPalette(greenShadesRGB565Palette, 4);
     // std::memset(VRAM.data(), 0x00, VRAM.size());
@@ -414,8 +414,17 @@ auto gb::PPU::renderSprites() -> void
             if (colorDepth == BBP8)
                 bgColor = greenShadesRGB332Palette[0] & 0x00FF;
 
-            if ((obj.attributesFlags & 0x80) && (screenSprite.readPixelValue(x, y) != bgColor))
-                continue;
+
+            if (colorDepth == BBP4)
+            {
+                if ((obj.attributesFlags & 0x80) && (greenShadesRGB565Palette[screenSprite.readPixelValue(x * 2, y * 2)] != bgColor))
+                    continue;
+            }
+            else
+            {
+                if ((obj.attributesFlags & 0x80) && (screenSprite.readPixelValue(x, y) != bgColor))
+                    continue;
+            }
 
             switch(colorDepth)
             {
