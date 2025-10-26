@@ -1,4 +1,4 @@
-# FestBoy_ESP32Embedded
+# FestBoy ESP32  [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 A port of my GB emulator [FestBoy](https://github.com/pabletefest/FestBoy) to a ESP32 microcontroller with TFT Display (ILI9486 driver 8-bit parallel).
 
 This project is intended only for educational porposes and led to my Master's Thesis at Polythecnic University of Valencia (UPV).
